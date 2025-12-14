@@ -106,8 +106,9 @@ function initializeGrid() {
     gameState.grid = [];
     gameState.circleElements = {};
     circleIdCounter = 0;
-    const board = document.getElementById('game-board');
-    board.innerHTML = '';
+
+    // Setup board and event listeners
+    const board = setupBoardEventListeners();
 
     // Create grid ensuring no initial matches
     for (let row = 0; row < GRID_SIZE; row++) {
@@ -163,11 +164,7 @@ function createCircleElement(row, col, circleId, isNew = false) {
     circle.style.setProperty('--row', row + 1);
     circle.style.setProperty('--col', col + 1);
 
-    circle.addEventListener('click', () => handleCircleClick(row, col));
-    circle.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        handleCircleClick(row, col);
-    }, { passive: false });
+    // Don't add event listeners here - we use event delegation on the board
 
     board.appendChild(circle);
     gameState.circleElements[circleId] = circle;
@@ -189,6 +186,53 @@ function getCircleElement(row, col) {
         return gameState.circleElements[cell.id];
     }
     return null;
+}
+
+function findCirclePosition(circleId) {
+    // Find the current grid position of a circle by its ID
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            if (gameState.grid[row][col]?.id === circleId) {
+                return { row, col };
+            }
+        }
+    }
+    return null;
+}
+
+function setupBoardEventListeners() {
+    const board = document.getElementById('game-board');
+
+    // Remove any existing listeners
+    const newBoard = board.cloneNode(false);
+    board.parentNode.replaceChild(newBoard, board);
+
+    // Add event delegation for clicks
+    newBoard.addEventListener('click', (e) => {
+        const circle = e.target.closest('.circle');
+        if (circle) {
+            const circleId = parseInt(circle.dataset.circleId);
+            const position = findCirclePosition(circleId);
+            if (position) {
+                handleCircleClick(position.row, position.col);
+            }
+        }
+    });
+
+    // Add event delegation for touch
+    newBoard.addEventListener('touchstart', (e) => {
+        const circle = e.target.closest('.circle');
+        if (circle) {
+            e.preventDefault();
+            const circleId = parseInt(circle.dataset.circleId);
+            const position = findCirclePosition(circleId);
+            if (position) {
+                handleCircleClick(position.row, position.col);
+            }
+        }
+    }, { passive: false });
+
+    return newBoard;
 }
 
 // Game Logic
@@ -514,6 +558,10 @@ async function applyGravity() {
 
 async function refillGrid() {
     const newCircles = [];
+    const board = document.getElementById('game-board');
+
+    // Use DocumentFragment to batch DOM insertions
+    const fragment = document.createDocumentFragment();
 
     for (let col = 0; col < GRID_SIZE; col++) {
         for (let row = 0; row < GRID_SIZE; row++) {
@@ -525,17 +573,45 @@ async function refillGrid() {
                     powerup: null
                 };
 
-                // Create new circle element with animation
-                createCircleElement(row, col, circleId, true);
-                newCircles.push({ row, col });
+                // Create circle element but append to fragment instead of board
+                const circle = createNewCircleElement(row, col, circleId);
+                fragment.appendChild(circle);
+                newCircles.push({ row, col, circle });
             }
         }
     }
 
-    // Wait for new circle animations to complete
-    if (newCircles.length > 0) {
+    // Append all new circles at once to minimize reflows
+    if (fragment.childNodes.length > 0) {
+        board.appendChild(fragment);
+
+        // Add 'new' class after DOM insertion for animation
+        requestAnimationFrame(() => {
+            newCircles.forEach(({ circle }) => {
+                circle.classList.add('new');
+            });
+        });
+
         await sleep(200);
     }
+}
+
+function createNewCircleElement(row, col, circleId) {
+    const circle = document.createElement('div');
+    const cell = gameState.grid[row][col];
+
+    circle.className = `circle color-${cell.color}`;
+    if (cell.powerup) {
+        circle.classList.add(`powerup-${cell.powerup}`);
+    }
+
+    circle.dataset.circleId = circleId;
+    circle.style.setProperty('--row', row + 1);
+    circle.style.setProperty('--col', col + 1);
+
+    gameState.circleElements[circleId] = circle;
+
+    return circle;
 }
 
 function updateBoard() {
