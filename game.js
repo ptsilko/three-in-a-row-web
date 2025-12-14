@@ -1,5 +1,6 @@
 // Game State
 const GRID_SIZE = 8;
+let circleIdCounter = 0;
 let gameState = {
     mode: 'moves', // 'moves' or 'endless'
     difficulty: 'easy',
@@ -10,6 +11,7 @@ let gameState = {
     score: 0,
     combo: 1,
     grid: [],
+    circleElements: {}, // Store DOM element references by ID
     selectedCircle: null,
     isAnimating: false,
     isPaused: false,
@@ -102,6 +104,8 @@ function startGame(difficulty) {
 // Grid Management
 function initializeGrid() {
     gameState.grid = [];
+    gameState.circleElements = {};
+    circleIdCounter = 0;
     const board = document.getElementById('game-board');
     board.innerHTML = '';
 
@@ -114,12 +118,14 @@ function initializeGrid() {
                 color = Math.floor(Math.random() * gameState.colors);
             } while (wouldCreateMatch(row, col, color));
 
+            const circleId = circleIdCounter++;
             gameState.grid[row][col] = {
+                id: circleId,
                 color: color,
                 powerup: null
             };
 
-            createCircleElement(row, col);
+            createCircleElement(row, col, circleId);
         }
     }
 }
@@ -140,7 +146,7 @@ function wouldCreateMatch(row, col, color) {
     return false;
 }
 
-function createCircleElement(row, col) {
+function createCircleElement(row, col, circleId, isNew = false) {
     const board = document.getElementById('game-board');
     const circle = document.createElement('div');
     const cell = gameState.grid[row][col];
@@ -149,8 +155,13 @@ function createCircleElement(row, col) {
     if (cell.powerup) {
         circle.classList.add(`powerup-${cell.powerup}`);
     }
-    circle.dataset.row = row;
-    circle.dataset.col = col;
+    if (isNew) {
+        circle.classList.add('new');
+    }
+
+    circle.dataset.circleId = circleId;
+    circle.style.setProperty('--row', row + 1);
+    circle.style.setProperty('--col', col + 1);
 
     circle.addEventListener('click', () => handleCircleClick(row, col));
     circle.addEventListener('touchstart', (e) => {
@@ -159,6 +170,25 @@ function createCircleElement(row, col) {
     }, { passive: false });
 
     board.appendChild(circle);
+    gameState.circleElements[circleId] = circle;
+
+    return circle;
+}
+
+function updateCirclePosition(circleId, row, col) {
+    const circle = gameState.circleElements[circleId];
+    if (circle) {
+        circle.style.setProperty('--row', row + 1);
+        circle.style.setProperty('--col', col + 1);
+    }
+}
+
+function getCircleElement(row, col) {
+    const cell = gameState.grid[row]?.[col];
+    if (cell && cell.id !== undefined) {
+        return gameState.circleElements[cell.id];
+    }
+    return null;
 }
 
 // Game Logic
@@ -202,13 +232,12 @@ function isAdjacent(pos1, pos2) {
 }
 
 function highlightCircle(row, col, highlight) {
-    const circles = document.querySelectorAll('.circle');
-    const index = row * GRID_SIZE + col;
-    if (circles[index]) {
+    const circle = getCircleElement(row, col);
+    if (circle) {
         if (highlight) {
-            circles[index].classList.add('selected');
+            circle.classList.add('selected');
         } else {
-            circles[index].classList.remove('selected');
+            circle.classList.remove('selected');
         }
     }
 }
@@ -221,8 +250,9 @@ async function swapCircles(pos1, pos2) {
     gameState.grid[pos1.row][pos1.col] = gameState.grid[pos2.row][pos2.col];
     gameState.grid[pos2.row][pos2.col] = temp;
 
-    // Update visual
-    updateBoard();
+    // Update visual positions smoothly
+    updateCirclePosition(gameState.grid[pos1.row][pos1.col].id, pos1.row, pos1.col);
+    updateCirclePosition(gameState.grid[pos2.row][pos2.col].id, pos2.row, pos2.col);
     await sleep(300);
 
     // Check for matches
@@ -252,7 +282,10 @@ async function swapCircles(pos1, pos2) {
         const temp = gameState.grid[pos1.row][pos1.col];
         gameState.grid[pos1.row][pos1.col] = gameState.grid[pos2.row][pos2.col];
         gameState.grid[pos2.row][pos2.col] = temp;
-        updateBoard();
+
+        // Swap back visually
+        updateCirclePosition(gameState.grid[pos1.row][pos1.col].id, pos1.row, pos1.col);
+        updateCirclePosition(gameState.grid[pos2.row][pos2.col].id, pos2.row, pos2.col);
     }
 
     gameState.selectedCircle = null;
@@ -327,10 +360,9 @@ async function processMatches() {
             await animateMatches(allMatches);
             removeMatches(allMatches);
 
-            // Apply gravity and refill
+            // Apply gravity and refill (now with smooth animations)
             await applyGravity();
-            refillGrid();
-            updateBoard();
+            await refillGrid();
 
             await sleep(300);
             gameState.combo++;
@@ -384,20 +416,21 @@ function checkForPowerUps(matches) {
         setTimeout(() => {
             if (gameState.grid[pos.row] && gameState.grid[pos.row][pos.col]) {
                 gameState.grid[pos.row][pos.col].powerup = powerupType;
-                updateBoard();
+                const circle = getCircleElement(pos.row, pos.col);
+                if (circle) {
+                    circle.classList.add(`powerup-${powerupType}`);
+                }
             }
         }, 400);
     }
 }
 
 async function animateMatches(matches) {
-    const circles = document.querySelectorAll('.circle');
-
     matches.forEach(match => {
-        const index = match.row * GRID_SIZE + match.col;
-        if (circles[index]) {
-            circles[index].classList.add('matching');
-            createParticles(circles[index], gameState.grid[match.row][match.col].color);
+        const circle = getCircleElement(match.row, match.col);
+        if (circle) {
+            circle.classList.add('matching');
+            createParticles(circle, gameState.grid[match.row][match.col].color);
         }
     });
 
@@ -431,7 +464,17 @@ function createParticles(element, color) {
 
 function removeMatches(matches) {
     matches.forEach(match => {
-        gameState.grid[match.row][match.col] = null;
+        const cell = gameState.grid[match.row][match.col];
+        if (cell) {
+            // Remove DOM element
+            const circle = gameState.circleElements[cell.id];
+            if (circle) {
+                circle.remove();
+                delete gameState.circleElements[cell.id];
+            }
+            // Clear grid cell
+            gameState.grid[match.row][match.col] = null;
+        }
     });
 }
 
@@ -441,33 +484,57 @@ async function applyGravity() {
     while (moved) {
         moved = false;
 
+        // Calculate all moves first
+        const moves = [];
         for (let row = GRID_SIZE - 2; row >= 0; row--) {
             for (let col = 0; col < GRID_SIZE; col++) {
                 if (gameState.grid[row][col] !== null && gameState.grid[row + 1][col] === null) {
-                    gameState.grid[row + 1][col] = gameState.grid[row][col];
-                    gameState.grid[row][col] = null;
-                    moved = true;
+                    moves.push({ from: { row, col }, to: { row: row + 1, col } });
                 }
             }
         }
 
-        if (moved) {
-            updateBoard();
-            await sleep(100);
+        if (moves.length > 0) {
+            moved = true;
+
+            // Apply all moves simultaneously
+            moves.forEach(move => {
+                const cell = gameState.grid[move.from.row][move.from.col];
+                gameState.grid[move.to.row][move.to.col] = cell;
+                gameState.grid[move.from.row][move.from.col] = null;
+
+                // Update visual position smoothly
+                updateCirclePosition(cell.id, move.to.row, move.to.col);
+            });
+
+            await sleep(150);
         }
     }
 }
 
-function refillGrid() {
+async function refillGrid() {
+    const newCircles = [];
+
     for (let col = 0; col < GRID_SIZE; col++) {
         for (let row = 0; row < GRID_SIZE; row++) {
             if (gameState.grid[row][col] === null) {
+                const circleId = circleIdCounter++;
                 gameState.grid[row][col] = {
+                    id: circleId,
                     color: Math.floor(Math.random() * gameState.colors),
                     powerup: null
                 };
+
+                // Create new circle element with animation
+                createCircleElement(row, col, circleId, true);
+                newCircles.push({ row, col });
             }
         }
+    }
+
+    // Wait for new circle animations to complete
+    if (newCircles.length > 0) {
+        await sleep(200);
     }
 }
 
@@ -521,12 +588,11 @@ function showHint() {
     const possibleMove = findPossibleMove();
 
     if (possibleMove) {
-        const circles = document.querySelectorAll('.circle');
-        const index1 = possibleMove.pos1.row * GRID_SIZE + possibleMove.pos1.col;
-        const index2 = possibleMove.pos2.row * GRID_SIZE + possibleMove.pos2.col;
+        const circle1 = getCircleElement(possibleMove.pos1.row, possibleMove.pos1.col);
+        const circle2 = getCircleElement(possibleMove.pos2.row, possibleMove.pos2.col);
 
-        if (circles[index1]) circles[index1].classList.add('hint');
-        if (circles[index2]) circles[index2].classList.add('hint');
+        if (circle1) circle1.classList.add('hint');
+        if (circle2) circle2.classList.add('hint');
 
         const hintMsg = document.getElementById('hint-message');
         hintMsg.classList.add('show');
