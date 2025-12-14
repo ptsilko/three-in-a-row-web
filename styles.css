@@ -251,10 +251,12 @@ h3 {
 .circle {
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, grid-row 0.3s ease, grid-column 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     position: relative;
     overflow: hidden;
+    grid-row: var(--row);
+    grid-column: var(--col);
 }
 
 .circle::before {
@@ -346,13 +348,17 @@ h3 {
 /* Animations */
 @keyframes fall {
     from {
-        transform: translateY(-100px);
         opacity: 0;
+        transform: translateY(-50px) scale(0.5);
     }
     to {
-        transform: translateY(0);
         opacity: 1;
+        transform: translateY(0) scale(1);
     }
+}
+
+.circle.new {
+    animation: fall 0.4s ease-out;
 }
 
 @keyframes match {
