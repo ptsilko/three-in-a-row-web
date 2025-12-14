@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="An engaging three-in-a-row match game with multiple difficulty levels">
+    <title>Three in a Row - Match Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Menu Screen -->
+    <div id="menu-screen" class="screen active">
+        <div class="container">
+            <h1 class="game-title">Three in a Row</h1>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="showModeSelection()">Start Game</button>
+                <button class="menu-btn" onclick="showInstructions()">How to Play</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Screen -->
+    <div id="instructions-screen" class="screen">
+        <div class="container">
+            <h2>How to Play</h2>
+            <div class="instructions">
+                <p><strong>Objective:</strong> Match 3 or more circles of the same color in a row!</p>
+                <p><strong>Controls:</strong> Click/tap a circle, then click/tap an adjacent circle to swap them.</p>
+                <p><strong>Scoring:</strong></p>
+                <ul>
+                    <li>3 matches: 10 points</li>
+                    <li>4 matches: 25 points + special power-up</li>
+                    <li>5+ matches: 50 points + super power-up</li>
+                    <li>Combo multiplier increases with consecutive matches!</li>
+                </ul>
+                <p><strong>Power-ups:</strong></p>
+                <ul>
+                    <li>💥 Row Blast: Clears entire row</li>
+                    <li>⚡ Column Blast: Clears entire column</li>
+                    <li>💫 Mega Blast: Clears surrounding area</li>
+                </ul>
+            </div>
+            <button class="menu-btn" onclick="showMenu()">Back</button>
+        </div>
+    </div>
+
+    <!-- Mode Selection Screen -->
+    <div id="mode-screen" class="screen">
+        <div class="container">
+            <h2>Select Game Mode</h2>
+            <div class="mode-buttons">
+                <div class="mode-card" onclick="selectMode('moves')">
+                    <h3>🎯 Move Limited</h3>
+                    <p>Reach the target score within limited moves</p>
+                </div>
+                <div class="mode-card" onclick="selectMode('endless')">
+                    <h3>♾️ Endless Mode</h3>
+                    <p>Play forever and reach the highest score!</p>
+                </div>
+            </div>
+            <button class="menu-btn back-btn" onclick="showMenu()">Back</button>
+        </div>
+    </div>
+
+    <!-- Difficulty Selection Screen -->
+    <div id="difficulty-screen" class="screen">
+        <div class="container">
+            <h2>Select Difficulty</h2>
+            <div class="difficulty-buttons">
+                <div class="difficulty-card" onclick="startGame('easy')">
+                    <h3>🟢 Easy</h3>
+                    <p>3 colors • More moves</p>
+                    <p class="difficulty-details">40 moves • Target: 500</p>
+                </div>
+                <div class="difficulty-card" onclick="startGame('medium')">
+                    <h3>🟡 Medium</h3>
+                    <p>4 colors • Moderate moves</p>
+                    <p class="difficulty-details">30 moves • Target: 600</p>
+                </div>
+                <div class="difficulty-card" onclick="startGame('hard')">
+                    <h3>🔴 Hard</h3>
+                    <p>5 colors • Limited moves</p>
+                    <p class="difficulty-details">25 moves • Target: 750</p>
+                </div>
+            </div>
+            <button class="menu-btn back-btn" onclick="showModeSelection()">Back</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="game-container">
+            <!-- Header -->
+            <div class="game-header">
+                <div class="score-panel">
+                    <div class="stat">
+                        <span class="stat-label">Score</span>
+                        <span class="stat-value" id="score">0</span>
+                    </div>
+                    <div class="stat" id="moves-stat">
+                        <span class="stat-label">Moves</span>
+                        <span class="stat-value" id="moves">0</span>
+                    </div>
+                    <div class="stat" id="target-stat">
+                        <span class="stat-label">Target</span>
+                        <span class="stat-value" id="target">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Combo</span>
+                        <span class="stat-value combo-value" id="combo">1x</span>
+                    </div>
+                </div>
+                <button class="icon-btn" onclick="pauseGame()" id="pause-btn">⏸️</button>
+            </div>
+
+            <!-- Game Board -->
+            <div id="game-board" class="game-board"></div>
+
+            <!-- Hint Message -->
+            <div id="hint-message" class="hint-message">Try matching these circles!</div>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="modal">
+        <div class="modal-content">
+            <h2>Game Paused</h2>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="resumeGame()">Resume</button>
+                <button class="menu-btn" onclick="restartGame()">Restart</button>
+                <button class="menu-btn" onclick="quitToMenu()">Quit to Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="modal">
+        <div class="modal-content">
+            <h2 id="gameover-title">Game Over</h2>
+            <div class="gameover-stats">
+                <p>Final Score: <span id="final-score">0</span></p>
+                <p id="high-score-msg"></p>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="restartGame()">Play Again</button>
+                <button class="menu-btn" onclick="quitToMenu()">Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
